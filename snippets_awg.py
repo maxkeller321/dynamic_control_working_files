@@ -58,6 +58,7 @@ def electron_pi_and_rf_on(mcas, new_segment = False,iq_mixer=__IQ_MIXER__, **all
     rfkwargs = allkwargs['d128m']
     type_mw = 'robust' if 'wave_file' in kwargs else 'sine'
     type_rf = 'sine'
+    
     if new_segment:
         mcas.start_new_segment(name='Electron Rabi with RF')
     pd = {}
@@ -217,16 +218,16 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+00', state_result='+'):
 
     if state_result == 'n+':
         ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5]}),
-                                    pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0)
+                                    pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     elif state_result == 'nn+':
         ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5]}),
-                        pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [-.5]})], nuc='13c90', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0)
+                        pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [-.5]})], nuc='13c90', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     elif state_result == '+':
         freq1 = pi3d.tt.mfl({'14N': [+1]}, ms_trans=ms)
         freq2 = pi3d.tt.mfl({'14N': [0]}, ms_trans=ms)
-        ssr(mcas, frequencies=[freq1,freq2], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0)
+        ssr(mcas, frequencies=[freq1,freq2], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     return mcas
     
@@ -607,28 +608,39 @@ class SSR(object):
         return pd2g_dict
 
     def compile(self):
+        if dynamic_control: 
+            pd128m2=dict(smpl_marker=True)
+        else:
+            pd128m2=dict()
+            
         aa = dict()
         if self.repetitions != 0:
             self.mcas.start_new_segment(name=self.name, loop_count=self.repetitions, advance_mode=self.advance_mode)
             for alt_step in range(self.number_of_alternating_steps):
                 d = self.pd2g_dict(alt_step)
-                self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], name='MW', **aa)
+                self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=pd128m2, name='MW', **aa)
                 if self.gate_or_trigger == 'trigger':
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, gate=True)
+                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, gate=True)
                 else:
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, memory=True)
+                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
 
                 if 'nuc' in self.kwargs.keys() and self.kwargs['nuc'] == 'charge_state':
-                    self.mcas.asc(length_mus=self.dur_step[alt_step][5], orange=True, name='Orange_Laser', **aa)
+                    self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=pd128m2, orange=True, name='Orange_Laser', **aa)
                 else:
-                    if self.dynamic_control:
-                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=dict(smpl_marker=True), green=True, name='Laser', **aa)
-                    else: 
-                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], green=True, name='Laser', **aa)
+                    self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=pd128m2, green=True, name='Laser', **aa)
 
-                self.mcas.asc(length_mus=self.dur_step[alt_step][6], name='Count', **aa)
+                self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=pd128m2, name='Count', **aa)
                 if self.gate_or_trigger == 'trigger':
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, memory=True)
+                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
+        """     
+        if self.dynamic_control:           
+            awg_str = '128m'
+            for ch in [1, 2]:
+                actual_segment_id = len(self.mcas.sequences[awg_str][ch].data_list) - 1 
+                SequenceStep = self.mcas.sequences[awg_str][ch].data_list[actual_segment_id]
+                for i in range(len(SequenceStep.data_list)):
+                    self.mcas.sequences[awg_str][ch].data_list[actual_segment_id].data_list[i].smpl_marker = True
+        """
 
 def ssr(mcas, **kwargs):
     s = SSR(mcas, **kwargs)
