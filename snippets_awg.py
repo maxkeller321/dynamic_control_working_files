@@ -201,13 +201,19 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
 
     return mcas
 
-def get_dynamic_nuclear_spin_init(ms=1, state_init='+00', state_result='+'):
+def get_dynamic_nuclear_spin_init(ms=1, state_init='+00', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
+    dark_readout = {'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5, -0.5]}
+
+    if key in bright_readout.keys():
+        for item in bright_readout[key]: 
+            dark_readout[key].remove(item)
+
     mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})
     mcas.dynamic_control = True
     
     polarize_green(mcas, new_segment=True)
 
-    if state_init[0] != '0':
+    if state_init[0] != 'x':
         init_14n(mcas, new_segment=True, mn=state_init[0])
 
     if state_init[1] != '0':
@@ -216,18 +222,8 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+00', state_result='+'):
     if state_init[2] != '0':
         init_13c(mcas, s='90', new_segment=True, state=state_init[2])
 
-    if state_result == 'n+':
-        ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5]}),
-                                    pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0, dynamic_control=True)
-
-    elif state_result == 'nn+':
-        ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5]}),
-                        pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [-.5]})], nuc='13c90', robust=True, repetitions=int(1200), mixer_deg=-90, step_idx=0, dynamic_control=True)
-
-    elif state_result == '+':
-        freq1 = pi3d.tt.mfl({'14N': [+1]}, ms_trans=ms)
-        freq2 = pi3d.tt.mfl({'14N': [0]}, ms_trans=ms)
-        ssr(mcas, frequencies=[freq1,freq2], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    ssr(mcas, frequencies=[dark_readout], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    ssr(mcas, frequencies=[bright_readout], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     return mcas
     
@@ -612,7 +608,7 @@ class SSR(object):
             pd128m2=dict(smpl_marker=True)
         else:
             pd128m2=dict()
-            
+
         aa = dict()
         if self.repetitions != 0:
             self.mcas.start_new_segment(name=self.name, loop_count=self.repetitions, advance_mode=self.advance_mode)
