@@ -23,7 +23,7 @@ __CURRENT_POL_RED__ = 76
 __T_POL_RED__ = 60.
 __RED_LASER__DELAY__ = 2.
 __SSR_REPETITIONS__ = {'14n+1': 1500, '14n-1': 1500, '14n': 1500, '14n0': 1200, '13c414': 1500, '13c90': 2000, 'charge_state':1}
-__LASER_DUR_DICT__ = {'14n+1': .175, '14n-1': .175, '14n': .175, '14n0': .2, '13c414': .2, '13c90': .21, 'single_state': .2, 'charge_state': 2000.0} # us
+__LASER_DUR_DICT__ = {'14n+1': .175, '14n-1': .175, '14n': .175, '14n0': .2, '13c414': .2, '13c90': .21, 'single_state': .2, 'charge_state': 800.0} # us
 __PERIODS__ = {'14n+1': 1.6, '14n-1': 1.6, '14n': 1.6, '14n0': 1.6, '13c414': 6.0, '13c90': 20., 'charge_state': 0.0}
 __WAVE_FILE_SCALING_FACTOR_DICT__ = {'14n+1': 2.5, '14n-1': 2.5, '14n': 2.5, '14n0': 2.5, '13c414': 1.0, 'charge_state': 1.0}
 __STANDARD_WAVEFILE__ = 'D:\data\Robust_Pulses\single_pulse_ON03_OFF05_Rabi10_02.dat'
@@ -604,17 +604,20 @@ class SSR(object):
         return pd2g_dict
 
     def compile(self):
-        if dynamic_control: 
-            pd128m2=dict(smpl_marker=True)
+        if self.dynamic_control:
+            pd128m2 = dict(smpl_marker=True)
         else:
-            pd128m2=dict()
+            pd128m2 = dict(smpl_marker=False)
 
         aa = dict()
         if self.repetitions != 0:
             self.mcas.start_new_segment(name=self.name, loop_count=self.repetitions, advance_mode=self.advance_mode)
             for alt_step in range(self.number_of_alternating_steps):
                 d = self.pd2g_dict(alt_step)
-                self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=pd128m2, name='MW', **aa)
+                if self.dynamic_control:
+                    self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=dict(smpl_marker=True), name='MW', **aa)
+                else:
+                    self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], name='MW', ** aa)
                 if self.gate_or_trigger == 'trigger':
                     self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, gate=True)
                 else:
@@ -625,18 +628,14 @@ class SSR(object):
                 else:
                     self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=pd128m2, green=True, name='Laser', **aa)
 
-                self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=pd128m2, name='Count', **aa)
+                if self.dynamic_control:
+                    self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=dict(smpl_marker=True), name='Count', **aa)
+                else:
+                    self.mcas.asc(length_mus=self.dur_step[alt_step][6], name='Count', **aa)
+
                 if self.gate_or_trigger == 'trigger':
                     self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
-        """     
-        if self.dynamic_control:           
-            awg_str = '128m'
-            for ch in [1, 2]:
-                actual_segment_id = len(self.mcas.sequences[awg_str][ch].data_list) - 1 
-                SequenceStep = self.mcas.sequences[awg_str][ch].data_list[actual_segment_id]
-                for i in range(len(SequenceStep.data_list)):
-                    self.mcas.sequences[awg_str][ch].data_list[actual_segment_id].data_list[i].smpl_marker = True
-        """
+
 
 def ssr(mcas, **kwargs):
     s = SSR(mcas, **kwargs)
