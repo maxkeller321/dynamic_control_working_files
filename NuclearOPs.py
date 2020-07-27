@@ -43,7 +43,7 @@ class NuclearOPs(DataGeneration):
             size={'left': '3', 'right': ''},
             repeat=False,
         )
-        self.dynamic_control = True 
+        self.dynamic_control = False
 
 
     state = ret_property_list_element('state', ['idle', 'run', 'sequence_testing', 'sequence_debug_interrupted', 'sequence_ok'])

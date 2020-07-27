@@ -201,7 +201,7 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
 
     return mcas
 
-def get_dynamic_nuclear_spin_init(ms=1, state_init='+xx', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
+def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
     dark_readout = {'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5, -0.5]}
 
     if key in bright_readout.keys():
@@ -222,8 +222,17 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+xx', bright_readout={'14n':
     if state_init[2] != 'x':
         init_13c(mcas, s='90', new_segment=False, state=state_init[2])
 
-    ssr(mcas, frequencies=[dark_readout], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
-    ssr(mcas, frequencies=[bright_readout], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    ssr_single_state(
+        mcas,
+        state=state_init,
+        step_idx=0,
+        repetitions=450,
+    )
+
+    dark_frequncys = pi3d.tt.mfl(dark_readout)
+    bright_frequencys = pi3d.tt.mfl(bright_readout)
+    ssr(mcas, frequencies=[dark_frequncys], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    ssr(mcas, frequencies=[bright_frequencys], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     return mcas
     
@@ -626,7 +635,10 @@ class SSR(object):
                 if 'nuc' in self.kwargs.keys() and self.kwargs['nuc'] == 'charge_state':
                     self.mcas.asc(length_mus=self.dur_step[alt_step][5], orange=True, name='Orange_Laser', **aa)
                 else:
-                    self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=pd128m2, green=True, name='Laser', **aa)
+                    if self.dynamic_control:
+                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=dict(smpl_marker=True), green=True, name='Laser', **aa)
+                    else:
+                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], green=True, name='Laser', **aa)
 
                 if self.dynamic_control:
                     self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=dict(smpl_marker=True), name='Count', **aa)
