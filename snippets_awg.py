@@ -203,6 +203,9 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
 
 def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
     dark_readout = {'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5, -0.5]}
+    
+    if state_init in ["".join(i) for i in itertools.product(['+', '0', '-'], ['+', '-'], ['+', '-'])]: 
+        dark_readout = ...
 
     if key in bright_readout.keys():
         for item in bright_readout[key]: 
@@ -213,13 +216,13 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n':
     
     polarize_green(mcas, new_segment=True)
 
-    if state_init[0] != 'x':
+    if state_init[0] != 'n':
         init_14n(mcas, new_segment=False, mn=state_init[0])
 
-    if state_init[1] != 'x':
+    if state_init[1] != 'n':
         init_13c(mcas, s='414', new_segment=False, state=state_init[1])
     
-    if state_init[2] != 'x':
+    if state_init[2] != 'n':
         init_13c(mcas, s='90', new_segment=False, state=state_init[2])
 
     ssr_single_state(

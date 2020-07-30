@@ -44,6 +44,7 @@ class NuclearOPs(DataGeneration):
             repeat=False,
         )
         self.dynamic_control = False
+        self.initilize_just_master = False
 
 
     state = ret_property_list_element('state', ['idle', 'run', 'sequence_testing', 'sequence_debug_interrupted', 'sequence_ok'])
@@ -368,7 +369,10 @@ class NuclearOPs(DataGeneration):
 
 
     def get_trace(self, abort, trigger_mode='triggered'):
-        self.mcas.initialize(trigger_mode=trigger_mode)
+        if self.initilize_just_master: 
+
+        else:
+            self.mcas.initialize(trigger_mode=trigger_mode)
         pi3d.gated_counter.count(abort, ch_dict=self.mcas.ch_dict)
 
     def setup_rf(self, current_iterator_df):
