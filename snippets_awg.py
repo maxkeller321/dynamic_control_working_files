@@ -656,16 +656,17 @@ class SSR(object):
             self.mcas.start_new_segment(name=self.name, loop_count=self.repetitions, advance_mode=self.advance_mode)
             for alt_step in range(self.number_of_alternating_steps):
                 d = self.pd2g_dict(alt_step)
-                if not self.dynamic_control:
-                    if self.gate_or_trigger == 'trigger':
-                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, gate=True)
-                    else:
-                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
-
+                
                 if self.dynamic_control:
                     self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=dict(smpl_marker=True), name='MW', **aa)
                 else:
                     self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], name='MW', ** aa)
+
+                if not self.dynamic_control:
+                    if self.gate_or_trigger == 'trigger':
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, gate=True)
+                    else:
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, memory=True)
 
                 if 'nuc' in self.kwargs.keys() and self.kwargs['nuc'] == 'charge_state':
                     self.mcas.asc(length_mus=self.dur_step[alt_step][5], orange=True, name='Orange_Laser', **aa)
@@ -682,7 +683,7 @@ class SSR(object):
 
                 if not self.dynamic_control:
                     if self.gate_or_trigger == 'trigger':
-                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, memory=True)
 
 
 def ssr(mcas, **kwargs):
