@@ -200,13 +200,43 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
     mcas.add_step_complete(name='orange', length_mus=length_orange_mus, pd128m2=pd128m2, orange=True)  # anpassen
 
     return mcas
+def get_dynamic_nuclear_spin_init(ms=1, state_init='n+n'):
 
+    mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})
+    mcas.dynamic_control = True
+
+    polarize_green(mcas, new_segment=True)
+
+    if state_init[0] != 'n':
+        init_14n(mcas, new_segment=False, mn=state_init[0])
+
+    if state_init[1] != 'n':
+        init_13c(mcas, s='414', new_segment=False, state=state_init[1])
+
+    if state_init[2] != 'n':
+        init_13c(mcas, s='90', new_segment=False, state=state_init[2])
+    """
+    ssr_single_state(
+        mcas,
+        state=state_init,
+        step_idx=0,
+        repetitions=450,
+    )
+    """
+    #dark_readout = {'14n': [0, -1], '13c414': [-.5], '13c90': [-0.5]}
+    #dark_frequncys = pi3d.tt.mfl('13c414' + '_left')
+    #bright_frequencys = pi3d.tt.mfl('13c414' + '_right')
+    ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    #ssr(mcas, frequencies=[bright_frequencys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    #ssr(mcas, frequencies=[dark_frequncys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+
+    return mcas
+"""
 def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
     dark_readout = {'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5, -0.5]}
-    
     if state_init in ["".join(i) for i in itertools.product(['+', '0', '-'], ['+', '-'], ['+', '-'])]: 
         dark_readout = ...
-
     if key in bright_readout.keys():
         for item in bright_readout[key]: 
             dark_readout[key].remove(item)
@@ -238,7 +268,7 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n':
     ssr(mcas, frequencies=[bright_frequencys], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
 
     return mcas
-    
+"""
 
 polarize = polarize_red
 
@@ -626,14 +656,16 @@ class SSR(object):
             self.mcas.start_new_segment(name=self.name, loop_count=self.repetitions, advance_mode=self.advance_mode)
             for alt_step in range(self.number_of_alternating_steps):
                 d = self.pd2g_dict(alt_step)
+                if not self.dynamic_control:
+                    if self.gate_or_trigger == 'trigger':
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, gate=True)
+                    else:
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
+
                 if self.dynamic_control:
                     self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=dict(smpl_marker=True), name='MW', **aa)
                 else:
                     self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], name='MW', ** aa)
-                if self.gate_or_trigger == 'trigger':
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, gate=True)
-                else:
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
 
                 if 'nuc' in self.kwargs.keys() and self.kwargs['nuc'] == 'charge_state':
                     self.mcas.asc(length_mus=self.dur_step[alt_step][5], orange=True, name='Orange_Laser', **aa)
@@ -648,8 +680,9 @@ class SSR(object):
                 else:
                     self.mcas.asc(length_mus=self.dur_step[alt_step][6], name='Count', **aa)
 
-                if self.gate_or_trigger == 'trigger':
-                    self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
+                if not self.dynamic_control:
+                    if self.gate_or_trigger == 'trigger':
+                        self.mcas.asc(length_mus=__TT_TRIGGER_LENGTH__, pd128m2=pd128m2, memory=True)
 
 
 def ssr(mcas, **kwargs):
@@ -783,5 +816,6 @@ def ssr_single_state(mcas, state, **kwargs):
         mixer_deg=-90,
         nuc=kwargs.pop('nuc', nuc),
         frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]}) for i in range(len(wave_file_kwargs))]),
-        wave_file_kwargs=wave_file_kwargs, **kwargs
+        wave_file_kwargs=wave_file_kwargs,
+        dynamic_control=kwargs.pop('dynamic_control', False), **kwargs
     )
