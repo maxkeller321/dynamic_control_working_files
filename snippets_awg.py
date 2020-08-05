@@ -200,7 +200,7 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
     mcas.add_step_complete(name='orange', length_mus=length_orange_mus, pd128m2=pd128m2, orange=True)  # anpassen
 
     return mcas
-def get_dynamic_nuclear_spin_init(ms=1, state_init='n+n'):
+def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn'):
 
     mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})
     mcas.dynamic_control = True
@@ -226,7 +226,14 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='n+n'):
     #dark_readout = {'14n': [0, -1], '13c414': [-.5], '13c90': [-0.5]}
     #dark_frequncys = pi3d.tt.mfl('13c414' + '_left')
     #bright_frequencys = pi3d.tt.mfl('13c414' + '_right')
-    ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+
+    freq2 = pi3d.tt.mfl({'14N': [0]}, ms_trans=_I_['ms'])
+    freq3 = pi3d.tt.mfl({'14N': [-1]}, ms_trans=_I_['ms'])
+    sna.ssr(mcas, frequencies=[freq2, freq3], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0)
+
+    #ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [+.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    mcas.start_new_segment(name='wait', loop_count=1)
+    mcas.add_step_complete(name='wait', length_mus=1)
     ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
     #ssr(mcas, frequencies=[bright_frequencys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
     #ssr(mcas, frequencies=[dark_frequncys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
@@ -647,9 +654,9 @@ class SSR(object):
 
     def compile(self):
         if self.dynamic_control:
-            pd128m2 = dict(smpl_marker=True)
+            pd128m2 = dict(sync_marker=True)
         else:
-            pd128m2 = dict(smpl_marker=False)
+            pd128m2 = dict(sync_marker=False)
 
         aa = dict()
         if self.repetitions != 0:
@@ -658,7 +665,7 @@ class SSR(object):
                 d = self.pd2g_dict(alt_step)
                 
                 if self.dynamic_control:
-                    self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=dict(smpl_marker=True), name='MW', **aa)
+                    self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], pd128m2=dict(sync_marker=True), name='MW', **aa)
                 else:
                     self.mcas.asc(pd2g1=d[1][2], pd2g2=d[2][2], name='MW', ** aa)
 
@@ -672,12 +679,12 @@ class SSR(object):
                     self.mcas.asc(length_mus=self.dur_step[alt_step][5], orange=True, name='Orange_Laser', **aa)
                 else:
                     if self.dynamic_control:
-                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=dict(smpl_marker=True), green=True, name='Laser', **aa)
+                        self.mcas.asc(length_mus=self.dur_step[alt_step][5], pd128m2=dict(sync_marker=True), green=True, name='Laser', **aa)
                     else:
                         self.mcas.asc(length_mus=self.dur_step[alt_step][5], green=True, name='Laser', **aa)
 
                 if self.dynamic_control:
-                    self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=dict(smpl_marker=True), name='Count', **aa)
+                    self.mcas.asc(length_mus=self.dur_step[alt_step][6], pd128m2=dict(sync_marker=True), name='Count', **aa)
                 else:
                     self.mcas.asc(length_mus=self.dur_step[alt_step][6], name='Count', **aa)
 
@@ -689,13 +696,14 @@ class SSR(object):
 def ssr(mcas, **kwargs):
     s = SSR(mcas, **kwargs)
     s.compile()
-    if not 'step_idx' in kwargs:
-        raise Exception('SSR step index must be given, or the gated counter wont know how to readout and treat the data.')
-    if kwargs['step_idx'] is not None:
-        pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][3] = s.repetitions * s.number_of_alternating_steps
-        pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][5] = s.number_of_alternating_steps
-        if pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][5] != 1 and pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][2] == 'auto':
-            pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][2] = 0
+    if not s.dynamic_control:
+        if not 'step_idx' in kwargs:
+            raise Exception('SSR step index must be given, or the gated counter wont know how to readout and treat the data.')
+        if kwargs['step_idx'] is not None:
+            pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][3] = s.repetitions * s.number_of_alternating_steps
+            pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][5] = s.number_of_alternating_steps
+            if pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][5] != 1 and pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][2] == 'auto':
+                pi3d.gated_counter.trace.analyze_sequence[kwargs['step_idx']][2] = 0
 
 wfpd_standard = collections.OrderedDict(
     [
@@ -810,13 +818,34 @@ def ssr_single_state(mcas, state, **kwargs):
                     filepath=kwargs.get('wfpd', wfpd_standard)[wfks],
                     rp=pi3d.tt.rp('e_rabi', mixer_deg=-90)
                 ) for wfks in wfksl]
-    ssr(mcas,
-        transition='left',
-        robust=True,
-        laser_dur=kwargs.pop('laser_dur', __LASER_DUR_DICT__.get(state, __LASER_DUR_DICT__['single_state'])),
-        mixer_deg=-90,
-        nuc=kwargs.pop('nuc', nuc),
-        frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]}) for i in range(len(wave_file_kwargs))]),
-        wave_file_kwargs=wave_file_kwargs,
-        dynamic_control=kwargs.pop('dynamic_control', False), **kwargs
-    )
+
+    if kwargs.get('dynamic_control', False) and state !='qutrit': # and (len(state) == 1 and state !='qutrit') or len(state) == len(state.lstrip('n')) == 3:
+
+        ssr(mcas,
+            transition='left',
+            robust=True,
+            laser_dur=kwargs.pop('laser_dur', __LASER_DUR_DICT__.get(state, __LASER_DUR_DICT__['single_state'])),
+            mixer_deg=-90,
+            nuc=kwargs.pop('nuc', nuc),
+            frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]})]),
+            wave_file_kwargs=wave_file_kwargs[0], **kwargs)
+
+        ssr(mcas,
+            transition='left',
+            robust=True,
+            laser_dur=kwargs.pop('laser_dur', __LASER_DUR_DICT__.get(state, __LASER_DUR_DICT__['single_state'])),
+            mixer_deg=-90,
+            nuc=kwargs.pop('nuc', nuc),
+            frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]})]),
+            wave_file_kwargs=wave_file_kwargs[1], **kwargs)
+
+    else:
+        ssr(mcas,
+            transition='left',
+            robust=True,
+            laser_dur=kwargs.pop('laser_dur', __LASER_DUR_DICT__.get(state, __LASER_DUR_DICT__['single_state'])),
+            mixer_deg=-90,
+            nuc=kwargs.pop('nuc', nuc),
+            frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]}) for i in range(len(wave_file_kwargs))]),
+            wave_file_kwargs=wave_file_kwargs,
+            dynamic_control=kwargs.pop('dynamic_control', False), **kwargs)
