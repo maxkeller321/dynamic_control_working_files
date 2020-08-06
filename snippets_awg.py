@@ -200,7 +200,7 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
     mcas.add_step_complete(name='orange', length_mus=length_orange_mus, pd128m2=pd128m2, orange=True)  # anpassen
 
     return mcas
-def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn'):
+def get_dynamic_nuclear_spin_init(ms=1, state_init='+++'):
 
     mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})
     mcas.dynamic_control = True
@@ -215,18 +215,13 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn'):
 
     if state_init[2] != 'n':
         init_13c(mcas, s='90', new_segment=False, state=state_init[2])
-    """
-    ssr_single_state(
-        mcas,
-        state=state_init,
-        step_idx=0,
-        repetitions=450,
-    )
-    """
+
+    ssr_single_state(mcas, state=state_init, dynamic_control=True)
+
     #dark_readout = {'14n': [0, -1], '13c414': [-.5], '13c90': [-0.5]}
     #dark_frequncys = pi3d.tt.mfl('13c414' + '_left')
     #bright_frequencys = pi3d.tt.mfl('13c414' + '_right')
-
+    """
     freq2 = pi3d.tt.mfl({'14N': [0]}, ms_trans=_I_['ms'])
     freq3 = pi3d.tt.mfl({'14N': [-1]}, ms_trans=_I_['ms'])
     sna.ssr(mcas, frequencies=[freq2, freq3], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0)
@@ -237,45 +232,9 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn'):
     ssr(mcas, frequencies=[pi3d.tt.mfl({'14n': [+1, 0, -1], '13c414': [-.5]})], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
     #ssr(mcas, frequencies=[bright_frequencys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
     #ssr(mcas, frequencies=[dark_frequncys], nuc='13c414', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
+    """
 
     return mcas
-"""
-def get_dynamic_nuclear_spin_init(ms=1, state_init='+nn', bright_readout={'14n': [+1], '13c414': [+.5], '13c90': [+.5]}):
-    dark_readout = {'14n': [+1, 0, -1], '13c414': [+.5, -.5], '13c90': [+.5, -0.5]}
-    if state_init in ["".join(i) for i in itertools.product(['+', '0', '-'], ['+', '-'], ['+', '-'])]: 
-        dark_readout = ...
-    if key in bright_readout.keys():
-        for item in bright_readout[key]: 
-            dark_readout[key].remove(item)
-
-    mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})
-    mcas.dynamic_control = True
-    
-    polarize_green(mcas, new_segment=True)
-
-    if state_init[0] != 'n':
-        init_14n(mcas, new_segment=False, mn=state_init[0])
-
-    if state_init[1] != 'n':
-        init_13c(mcas, s='414', new_segment=False, state=state_init[1])
-    
-    if state_init[2] != 'n':
-        init_13c(mcas, s='90', new_segment=False, state=state_init[2])
-
-    ssr_single_state(
-        mcas,
-        state=state_init,
-        step_idx=0,
-        repetitions=450,
-    )
-
-    dark_frequncys = pi3d.tt.mfl(dark_readout)
-    bright_frequencys = pi3d.tt.mfl(bright_readout)
-    ssr(mcas, frequencies=[dark_frequncys], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
-    ssr(mcas, frequencies=[bright_frequencys], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=0, dynamic_control=True)
-
-    return mcas
-"""
 
 polarize = polarize_red
 
@@ -847,5 +806,4 @@ def ssr_single_state(mcas, state, **kwargs):
             mixer_deg=-90,
             nuc=kwargs.pop('nuc', nuc),
             frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]}) for i in range(len(wave_file_kwargs))]),
-            wave_file_kwargs=wave_file_kwargs,
-            dynamic_control=kwargs.pop('dynamic_control', False), **kwargs)
+            wave_file_kwargs=wave_file_kwargs, **kwargs)
