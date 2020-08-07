@@ -206,7 +206,7 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+++'):
     mcas.dynamic_control = True
 
     polarize_green(mcas, new_segment=True)
-
+    """
     if state_init[0] != 'n':
         init_14n(mcas, new_segment=False, mn=state_init[0])
 
@@ -215,7 +215,7 @@ def get_dynamic_nuclear_spin_init(ms=1, state_init='+++'):
 
     if state_init[2] != 'n':
         init_13c(mcas, s='90', new_segment=False, state=state_init[2])
-
+    """
     ssr_single_state(mcas, state=state_init, dynamic_control=True)
 
     #dark_readout = {'14n': [0, -1], '13c414': [-.5], '13c90': [-0.5]}
@@ -789,6 +789,8 @@ def ssr_single_state(mcas, state, **kwargs):
             frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]})]),
             wave_file_kwargs=wave_file_kwargs[0], **kwargs)
 
+        mcas.start_new_segment(name='wait', loop_count=1)
+        mcas.add_step_complete(name='wait', length_mus=1) # 0.2 mus is normally working
         ssr(mcas,
             transition='left',
             robust=True,
@@ -797,7 +799,6 @@ def ssr_single_state(mcas, state, **kwargs):
             nuc=kwargs.pop('nuc', nuc),
             frequencies=kwargs.pop('frequencies', [pi3d.tt.mfl({'14n': [0]})]),
             wave_file_kwargs=wave_file_kwargs[1], **kwargs)
-
     else:
         ssr(mcas,
             transition='left',

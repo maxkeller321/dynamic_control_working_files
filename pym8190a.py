@@ -65,10 +65,12 @@ class MultiChSeqDict(collections.OrderedDict):
         if not self.debug_mode:
             stop_awgs(self.awgs)
 
-    def set_wait(self):
+    def set_wait(self, dynamic_control=False):
         mcas = MultiChSeq(name='wait', ch_dict=settings.ch_dict_full)
         mcas.start_new_segment('wait')
         mcas.status = 1
+        if dynamic_control:
+            mcas.dynamic_control = True
         self['wait'] = mcas
 
     def __setitem__(self, key, value, dict_setitem=dict.__setitem__):

@@ -18,7 +18,8 @@ import numpy as np
 import pandas as pd
 import logging
 import collections
-from dynamic_control import DynamicControl
+
+#from UserScripts.helpers import standard_awg_sequences
 
 from numbers import Number
 from qutip_enhanced.data_generation import DataGeneration
@@ -106,7 +107,8 @@ class NuclearOPs(DataGeneration):
         else:
             self.run_measurement(*args, **kwargs)
 
-    def prepare_for_dynamic_mode(self):
+    def prepare_for_dynamic_mode(self, abort):
+
         pi3d.md.stop_awgs()
         for key in pi3d.md:
             if key == "green":
@@ -116,10 +118,6 @@ class NuclearOPs(DataGeneration):
             pi3d.md.__delitem__(key)
         pi3d.md.connect_to_awgs(False)
 
-        for awg in pi3d.awgs:
-            for ch in [1, 2]:
-                pi3d.awgs[awg].ch[ch].dynamic_mode = 1
-
         self.setup_rf(self.current_iterator_df)
 
         wait.dynamic_control = True
@@ -127,6 +125,16 @@ class NuclearOPs(DataGeneration):
 
         pi3d.md['wait'] = wait
         pi3d.md['green'] = green
+
+        #green = standard_awg_sequences.ret_awg_seq('green')
+        #green.dynamic_control = True
+        #pi3d.md.set_wait(dynamic_control=True)
+        #pi3d.md['green'] = green
+
+
+        for awg in pi3d.awgs:
+            for ch in [1, 2]:
+                pi3d.awgs[awg].ch[ch].dynamic_mode = 1
 
     def abort_function(self):
         print("we try to aboart")
@@ -140,16 +148,12 @@ class NuclearOPs(DataGeneration):
                 pi3d.md.__delitem__(key)
             pi3d.md.connect_to_awgs(False)
 
-            pi3d.awgs['2g'].ch[1].dynamic_mode = 0
-            pi3d.awgs['2g'].ch[2].dynamic_mode = 0
-            pi3d.awgs['128m'].ch[1].dynamic_mode = 0
-            pi3d.awgs['128m'].ch[2].dynamic_mode = 0
+            for awg in pi3d.awgs:
+                for ch in [1, 2]:
+                    pi3d.awgs[awg].ch[ch].dynamic_mode = 0
+                    wait.sequences[awg][ch].advance_mode = "COND"
 
             green.sequences['2g'][2].advance_mode = "COND"
-            wait.sequences['2g'][2].advance_mode = "COND"
-            wait.sequences['2g'][1].advance_mode = "COND"
-            wait.sequences['128m'][1].advance_mode = "COND"
-            wait.sequences['128m'][2].advance_mode = "COND"
 
             wait.dynamic_control = False
             green.dynamic_control = False 
@@ -167,25 +171,19 @@ class NuclearOPs(DataGeneration):
             for idx, _ in enumerate(self.iterator()):
 
                 if abort.is_set():
-                    print("abort 1")
-                    self.abort_function()
                     break
                 while True:
                     if abort.is_set():
-                        print("abort 2")
-                        self.abort_function()
                         break
 
                     if self.dynamic_control:
-                        self.prepare_for_dynamic_mode()    
+                        self.prepare_for_dynamic_mode(abort)
                         trigger_mode = 'triggered'
                     else: 
                         self.setup_rf(self.current_iterator_df)
                         trigger_mode = 'triggered'
 
                     if abort.is_set():
-                        print("abort 3")
-                        self.abort_function()
                         break
                     self.data.set_observations([OrderedDict(local_oscillator_freq=pi3d.tt.current_local_oscillator_freq)]*self.number_of_simultaneous_measurements)
                     self.data.set_observations(pd.concat([self.df_refocus_pos.iloc[-1:, :]]*self.number_of_simultaneous_measurements).reset_index(drop=True))
@@ -194,35 +192,23 @@ class NuclearOPs(DataGeneration):
                     self.get_trace(abort, trigger_mode=trigger_mode)
 
                     if abort.is_set():
-                        print("abort 4")
-                        self.abort_function()
                         break
                     self.data.set_observations([OrderedDict(end_time=datetime.datetime.now())]*self.number_of_simultaneous_measurements)
                     self.data.set_observations([OrderedDict(trace=self.ana_trace.trace)]*self.number_of_simultaneous_measurements)
                     if abort.is_set():
-                        self.abort_function()
-                        print("abort 5")
                         break
 
                     repeat_measurement = self.analyze()
                     if abort.is_set():
-                        self.abort_function()
-                        print("abort 6")
                         break
-
-                    if self.dynamic_control:
-                        print("leaving dynamic control for short time")
-                        self.abort_function()
 
                     odmr_frequency_drift_ok = self.do_refocusodmr(abort=abort)
                     if odmr_frequency_drift_ok and not repeat_measurement:
-                        self.abort_function()
                         break
 
                 if hasattr(self, '_pld'):
                     self.pld.new_data_arrived()
                 if abort.is_set():
-                    self.abort_function()
                     break
 
                 self.save()
@@ -233,10 +219,10 @@ class NuclearOPs(DataGeneration):
             print(str(exc_value))
             print(str(exc_tb))
             traceback.print_exception(exc_type, exc_value, exc_tb)
-            if self.dynamic_control:
-                print("except abort")
-                self.abort_function()
         finally:
+            if self.dynamic_control:
+                print("final abort")
+                self.abort_function()
             self.data._df = data_handling.df_take_duplicate_rows(self.data.df, self.iterator_df_done) #drops unfinished measurements,
             self.pld.new_data_arrived()
             pi3d.multi_channel_awg_sequence.stop_awgs(pi3d.awgs)
