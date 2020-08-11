@@ -29,26 +29,26 @@ def ret_ret_mcas(pdc):
         for idx, _I_ in current_iterator_df.iterrows():
 
             sna.polarize_green(mcas, new_segment=True)
-
+            
+            """
             if _I_['polarize']:
                 sna.init_13c(mcas, s='90', new_segment=True, state=_I_['state_init'][2])
                 sna.init_13c(mcas, s='414', new_segment=True, state=_I_['state_init'][1])
                 sna.init_14n(mcas, new_segment=True, mn=_I_['state_init'][0])
+            """
 
+            #sna.ssr_single_state(mcas, state=_I_['state_init'],  step_idx=0)
 
-            sna.ssr_single_state(mcas, state=_I_['state_init'],  step_idx=0)
+            wave_file_kwargs_all_but_standard = dict(filepath=sna.wfpd_all_but_standard[_I_['state_init']], rp=pi3d.tt.rp('e_rabi', mixer_deg=-90))
+            wave_file_kwargs_all = dict(filepath=sna.wfpd_standard[_I_['state_init']], rp=pi3d.tt.rp('e_rabi', mixer_deg=-90))
 
-            wave_file_kwargs = dict(filepath=sna.wfpd_all_but_standard[_I_['state_init']], rp=pi3d.tt.rp('e_rabi', mixer_deg=-90))
-
-            #freq = pi3d.tt.mfl({'14n': [+1], '13c414': [+.5], '13c90': [+.5]})
-
-
+            """
             freq1 = pi3d.tt.mfl({'14N': [+1]}, ms_trans=_I_['ms'])
             freq2 = pi3d.tt.mfl({'14N': [0]}, ms_trans=_I_['ms'])
             freq3 = pi3d.tt.mfl({'14N': [-1]}, ms_trans=_I_['ms'])
             sna.ssr(mcas, frequencies=[freq1, freq2], nuc='14N+1', robust=True, mixer_deg=-90, step_idx=1)
-
             """
+            
             sna.ssr(mcas,
                 transition='left',
                 robust=True,
@@ -56,9 +56,26 @@ def ret_ret_mcas(pdc):
                 mixer_deg=-90,
                 nuc=_I_['nuc'],
                 frequencies=[pi3d.tt.mfl({'14n': [0]})],
-                wave_file_kwargs=wave_file_kwargs,
+                wave_file_kwargs=wave_file_kwargs_all,
+                step_idx=0)
+            sna.ssr(mcas,
+                transition='left',
+                robust=True,
+                laser_dur=sna.__LASER_DUR_DICT__.get(_I_['state_init'], sna.__LASER_DUR_DICT__['single_state']),
+                mixer_deg=-90,
+                nuc=_I_['nuc'],
+                frequencies=[pi3d.tt.mfl({'14n': [0]})],
+                wave_file_kwargs=wave_file_kwargs_all_but_standard,
                 step_idx=1)
-            """
+            sna.ssr(mcas,
+                transition='left',
+                robust=True,
+                laser_dur=sna.__LASER_DUR_DICT__.get(_I_['state_init'], sna.__LASER_DUR_DICT__['single_state']),
+                mixer_deg=-90,
+                nuc=_I_['nuc'],
+                frequencies=[pi3d.tt.mfl({'14n': [0]})],
+                wave_file_kwargs=wave_file_kwargs_all,
+                step_idx=2)
 
             pi3d.gated_counter.set_n_values(mcas)
         return mcas
@@ -81,12 +98,10 @@ def ret_ret_mcas(pdc):
 
 def settings(pdc={}):
     ana_seq=[
-        ['init', '>', 8, 10, 5, 1],
+        ['init', '<', 0, 0, 10, 2], # 3 is repetitions
+        #['init', '>', 8, 10, 5, 1],
         ['result', '<', 0, 0, 10, 2], # 3 is repetitions
-        #['result', '<', 0, 0, 10, 3],
-        #['result', '<', 0, 0, 10, 3]
-        #['result', '<', 0, 0, 10, 2]
-        #['result', '<', 'auto', 123123, 1, 1],
+        ['result', '<', 0, 0, 10, 2], # 3 is repetitions
     ]
     sch.settings(
         nuclear=nuclear,
