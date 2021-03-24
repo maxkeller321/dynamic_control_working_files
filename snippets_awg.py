@@ -197,9 +197,10 @@ def get_dynamic_charge_state_init(length_orange_mus=800):
     polarize_green(mcas, new_segment=True)
     mcas.start_new_segment('orange', loop_count=1)
     pd128m2 = dict(smpl_marker=True)
-    mcas.add_step_complete(name='orange', length_mus=length_orange_mus, pd128m2=pd128m2, orange=True)  # anpassen
+    mcas.add_step_complete(name='orange', length_mus=length_orange_mus, pd128m2=pd128m2, orange=True)  
 
     return mcas
+    
 def get_dynamic_nuclear_spin_init(ms=1, state_init='+++'):
 
     mcas = MCAS.MultiChSeq(name='nuclear_init', ch_dict={'2g': [1, 2], '128m': [1, 2]})

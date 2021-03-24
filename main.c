@@ -34,9 +34,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define true 1
-#define false 0
-#define adc_maximum = 255;
 
 /* USER CODE END PD */
 
@@ -58,17 +55,12 @@ static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
 void timer_8_pulse_counter_gpioc6_Init(void);
 static void GPIO_for_AWG_Init(void);
-void start_new_AWG_pulse_sequence(void);
 void single_dynamic_output_pin_Init(uint16_t PIN);
 int pow_int(int basis, int exponent);
 void fill_the_AWG_input_bits(void);
 void reset_awg_output_pins(void);
-void timer1_Init(void);
 void trigger_awg_2g(void);
-void trigger_awg_128m(void);
 void orange_input_pin_init(void);
-void timer_2_Init(void);
-void delay_100ns(uint32_t number_of_100ns);
 void trigger_awg_Init(void);
 void fill_the_AWG_128m_input_bits(void);
 
@@ -96,7 +88,7 @@ uint32_t bits_for_AWG_128m_2;
 void EXTI0_IRQHandler(void)
 {
 	/* USER CODE BEGIN EXTI0_IRQn 0 */
-	DWT_Delay(4);// important Delay
+	DWT_Delay(4);// Backswitching Delay
 
 	GPIOA->ODR |= GPIO_PIN_1;
 	GPIOA->ODR = 0x00;
@@ -107,26 +99,6 @@ void EXTI0_IRQHandler(void)
   /* USER CODE END EXTI0_IRQn 1 */
 }
 
-/*
- AdcValue = ADC1->DR; // get the adc value
-	      if (AdcValue >= ADC_UPGOING_LEVEL) {
-	        current_level = 1;
-	        count++;
-	      }
-	  }
-	  else {
-	        current_level = 0;
-	      }
-	   }
- */
-
-
-
-
-uint8_t counting_time_ms = 3; // [ms]
-uint32_t clock_frequency = 168000000; // Hz
-uint32_t one_micro_second_while = 168000000/168000000; // while loop: while(time--) takes 4 clock cylces --> 1mu delay with while loop
-uint32_t one_nano_second_while =  168000000/8000000;
 /* USER CODE END 0 */
 
 /**
@@ -145,7 +117,8 @@ int main(void)
 
 
 
-	HAL_Init();
+
+ HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -155,7 +128,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  timer1_Init();
   timer_8_pulse_counter_gpioc6_Init();
   trigger_awg_Init();
   GPIO_for_AWG_Init();
@@ -163,7 +135,6 @@ int main(void)
   fill_the_AWG_input_bits();
   fill_the_AWG_128m_input_bits();
   DWT_Init();
-  timer_2_Init();
 
 
   /* USER CODE END SysInit */
@@ -173,66 +144,46 @@ int main(void)
   /* USER CODE BEGIN 2 */
   uint16_t load_bits = GPIO_PIN_7 + GPIO_PIN_14;
   uint16_t bits_for_awg_sequence_2 = Bit_12_0_for_AWG + bits_for_AWG_128m_2;
-  uint16_t bits_for_awg_sequence_1 = 0x00; // 0x01 + 0x0100000000;
-  uint16_t bits_2_128m = bits_for_AWG_128m_2;
-  uint16_t bits_1_128m = bits_for_AWG_128m_1;
-  uint16_t count_variable = 0;
+  uint16_t bits_for_awg_sequence_1 = 0x01 + 0x0100000000;
 
   /* USER CODE END 2 */
-  //bits_for_AWG_128m_2 = 0x500;
   /* Infinite loop */
   while (1)
-	  {
+  {
+    /* USER CODE BEGIN WHILE */
 	    if(GPIOA->IDR & 0x04)
 	    {
 	      TIM8->CNT  &= 0x00000000; // 1: resets TIM8
 	          while(GPIOA->IDR & 0x04) {
-
 	          }
 
-				//TIM8->CNT  &= 0x00000000; // 1: resets TIM8
-				//DWT_Delay(800);
-	          count_variable = TIM8->CNT;
-	          if (TIM8->CNT >= threshold)
+				if (TIM8->CNT >= threshold)
 				{
-					//GPIOB->ODR |= GPIO_PIN_15; // Set the data select bit on "High"
-					//GPIOB->ODR |= Bit_13_18_for_AWG;
-					//GPIOB->ODR |= GPIO_PIN_14; // Set the load bit on "High"
-					//GPIOB->ODR = 0x00; // Set the load bit on "High"
+
 					GPIOB->ODR = bits_for_awg_sequence_2;
-					//GPIOB->ODR = Bit_12_0_for_AWG;
-					//GPIOB->ODR |= bits_for_AWG_128m_2;
-					GPIOB->ODR |= load_bits; // Set the load bit on "High" "128m"
-					//GPIOB->ODR |= GPIO_PIN_14; // Set the load bit on "High"
-					//GPIOB->ODR |= GPIO_PIN_7;//orange_level = 0;
-					DWT_Delay(2);
+					GPIOB->ODR |= load_bits; // Set the load bits on "High" 
+					DWT_Delay(2); // Dynamic-Control-In delay
+
 					GPIOA->ODR |= GPIO_PIN_1; //trigger awg 2g
 					GPIOA->ODR = 0x00;
-					DWT_Delay(20);
 
-					//GPIOB->ODR = 0x01;
-					//GPIOB->ODR |= 0x0100000000;
+					DWT_Delay(20); // Delay Dynamic-Control-In port s
+
 					GPIOB->ODR = bits_for_awg_sequence_1;
-
-					GPIOB->ODR |= load_bits; // Set the load bit on "High" "128m"
+					GPIOB->ODR |= load_bits; // Set the load bits on "High"
 					DWT_Delay(1);
 
-					//GPIOB->ODR |= GPIO_PIN_7;//orange_level = 0;
-					//GPIOB->ODR |= GPIO_PIN_14; // Set the load bit on "High"
+					GPIOB->ODR = 0; // reset bits
 
-					//GPIOB->ODR = bits_for_awg_sequence_1;
-					//GPIOB->ODR |= load_bits; // Set the load bit on "High" "128m"					//orange_level = 0;
-					GPIOB->ODR = 0;
-					//orange_level = 0;
 				}
 				else
 				{
-					DWT_Delay(10);
+					DWT_Delay(5);
 					GPIOA->ODR |= GPIO_PIN_1;
 					GPIOA->ODR = 0x00;
 				}
 		 }
-	/* USER CODE BEGIN WHILE */
+
 	/* USER CODE END WHILE */
   }
   /* USER CODE BEGIN 3 */
@@ -320,7 +271,7 @@ void timer_8_pulse_counter_gpioc6_Init(void){
 	// GPIO port mode register (GPIOx_MODER)
 	GPIOC->MODER  |= 0x2000; // 10: Alternate function mode PC6 => AF mode
 	GPIOC->AFR[0] |= 0x3000000; // Must refer to AF3 (alternate function for TIM8)
-	GPIOC->PUPDR  |= 0x2000;  // Sets pull down resistor for PA1
+	GPIOC->PUPDR  |= 0x2000;  // Sets pull down resistor for PC6
 
 	// CCMR!: capture/compare mode register 1
 	TIM8->CCMR1 |= 0x01; //  CC1 channel is configured as input, IC1 is mapped on TI1
@@ -334,31 +285,6 @@ void timer_8_pulse_counter_gpioc6_Init(void){
 }
 
 /**
-  * @brief AWG output set function
-  *	Before the use of this function:
-    --> AWG_sequence_id for the pump & readout sequence has to be correct
-    --> fill_the_AWG_input_bits has to be executed
-  * @retval None
-  */
-void start_new_AWG_pulse_sequence(void)
-{
-	  // Set Bit 5-0 from the dynamic control cable as Bit 18-13 in the AWG sequence register
-	  // Just use this Code if the DynamicSelectWidth is 1 in the Hardware Settings file of the dynamically controlled AWG
-	  /*
-	  GPIOB->ODR |= GPIO_PIN_15; // Set the data select bit on "High"
-	  GPIOB->ODR |= Bit_13_18_for_AWG;
-	  GPIOB->ODR |= GPIO_PIN_14; // Set the load bit on "High"
-	  reset_awg_output_pins();
-	  */
-
-	  // Set Bit 12-0 from the dynamic control cable as Bit 12-0 in the AWG sequence register
-	  // data select bit is already 0 (Pin 15)
-	  GPIOB->ODR |= Bit_12_0_for_AWG;
-	  GPIOB->ODR |= GPIO_PIN_14; // Set the load bit on "High"
-	  reset_awg_output_pins();
-}
-
-/**
   * @brief AWG output reset function
   *	Sets all output voltages to "LOW"
   * @retval None
@@ -369,7 +295,8 @@ void reset_awg_output_pins(void)
 }
 /**
   * @brief AWG output pin init function
-  *	initialize all GPIOB Pins in Output mode which are relevant for the AWG output
+  *	initialize all GPIOB Pins in Output mode which 
+  *  are relevant for the AWG output
   * @retval None
   */
 static void GPIO_for_AWG_Init(void)
@@ -403,7 +330,7 @@ void single_dynamic_output_pin_Init(uint16_t PIN)
   GPIO_InitStruct.Pin = PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // Maybe GPIO_SPEED_FAST would be enough.
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
@@ -420,7 +347,6 @@ void fill_the_AWG_128m_input_bits(void){
 		buffer_2 /= 2;
 	}
 }
-
 
 /**
   * Converts the global integer: AWG_sequence_id into the bitstrings:
@@ -453,38 +379,6 @@ int pow_int(int basis, int exponent){
 		return basis*pow_int(basis, exponent-1);
 }
 
-/**
-  * @brief TIM1 Initialization Function
-  * Dont change the prescaler:
-      it would also change the waiting time of: wait_100us();
-  * @param None
-  * @retval None
-  */
-void timer1_Init(void){
-	RCC->APB2ENR  |= 0x01; // 1: enable TIM1 in clock register
-	TIM1->CR1 |= 0x0001; //0001 Enable Timer
-	TIM1->PSC = 1; // Prescaler lowers the timer frequency to a quarter
-	TIM1->ARR = 0xFFFF;  // Set the timer reset on the highest possible value
-}
-
-void delay_100ns(uint32_t number_of_100ns)
-{
-
-	number_of_100ns = number_of_100ns*8.4 -150;
-	TIM2->CNT = 0x00;
-	while(TIM2->CNT < number_of_100ns) // exact would be 16.8
-		asm("\t nop");
-}
-
-void timer_2_Init(void){
-	RCC->AHB1ENR |= 0x01; // 1: IO port A clock enabled
-
-	RCC->APB1ENR  |= 0x01; // 1: enable TIM2
-
-	//TIM2->ARR = 0xFFFFFF; // Set the timer reset on the highest possible value
-
-	TIM2->CR1  |= 0x0001; //0001 Enable Timer
-}
 
 void trigger_awg_2g(void){
 	GPIOA->ODR |= GPIO_PIN_1;
@@ -498,7 +392,7 @@ void orange_input_pin_init(void){
 	GPIO_InitStruct_2.Pin = GPIO_PIN_2;
 	GPIO_InitStruct_2.Mode = GPIO_MODE_INPUT;
 	GPIO_InitStruct_2.Pull = GPIO_PULLDOWN;
-	GPIO_InitStruct_2.Speed = GPIO_SPEED_FREQ_HIGH; // Maybe GPIO_SPEED_FAST would be enough.
+	GPIO_InitStruct_2.Speed = GPIO_SPEED_FREQ_HIGH; 
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_2);
 }
 
@@ -511,7 +405,7 @@ void trigger_awg_Init(void){
 	GPIO_InitStruct.Pin = GPIO_PIN_1;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; // Maybe GPIO_SPEED_FAST would be enough.
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; 
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 }
 /* USER CODE END 4 */
